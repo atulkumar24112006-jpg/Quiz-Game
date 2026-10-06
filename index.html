@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #080D18;
+    --bg-2: #0C1424;
+    --panel: rgba(18,27,48,0.72);
+    --panel-solid: #121B30;
+    --border: rgba(255,255,255,0.08);
+    --cyan: #4CE0D2;
+    --violet: #9C8CFB;
+    --text: #EAF0F7;
+    --muted: #7C8AA0;
+    --correct: #3ECF8E;
+    --wrong: #FF6B7A;
+    --amber: #FFC168;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(76,224,210,0.14), transparent 60%),
+      radial-gradient(ellipse 800px 500px at 100% 10%, rgba(156,140,251,0.14), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size:42px 42px;
+    mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 0%, transparent 75%);
+    pointer-events:none;
+    z-index:0;
+  }
+  .bg-watermark{
+    position:fixed;
+    top:50%; left:50%;
+    width:1100px; height:1100px;
+    transform:translate(-50%,-50%);
+    opacity:0.045;
+    pointer-events:none;
+    z-index:0;
+  }
+  .bg-watermark svg{width:100%; height:100%;}
+
+  .console{
+    width:100%;
+    max-width:600px;
+    position:relative;
+    z-index:1;
+  }
+
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:16px;
+    padding:0 4px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+  }
+  .atom{
+    width:26px; height:26px;
+    position:relative;
+  }
+  .atom .core{
+    position:absolute; top:50%; left:50%;
+    width:6px; height:6px; border-radius:50%;
+    background:var(--cyan);
+    transform:translate(-50%,-50%);
+    box-shadow:0 0 10px var(--cyan);
+  }
+  .atom .ring{
+    position:absolute; inset:0;
+    border:1.5px solid rgba(76,224,210,0.55);
+    border-radius:50%;
+  }
+  .atom .ring.r2{
+    transform:rotate(60deg);
+    border-color:rgba(156,140,251,0.55);
+  }
+  .atom .ring.r3{transform:rotate(-60deg);}
+  .atom .electron{
+    position:absolute; top:-2px; left:50%;
+    width:4px; height:4px; margin-left:-2px;
+    border-radius:50%;
+    background:var(--violet);
+    box-shadow:0 0 6px var(--violet);
+    animation:orbit 3.4s linear infinite;
+  }
+  @keyframes orbit{
+    from{transform:rotate(0deg) translateX(13px) rotate(0deg);}
+    to{transform:rotate(360deg) translateX(13px) rotate(-360deg);}
+  }
+  .brand-name{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:1.05rem;
+    letter-spacing:0.02em;
+  }
+  .status-dot{
+    display:flex; align-items:center; gap:6px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.68rem;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+  }
+  .status-dot span.dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--correct);
+    box-shadow:0 0 6px var(--correct);
+  }
+
+  .panel{
+    background:var(--panel);
+    backdrop-filter:blur(18px);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:32px 30px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+    min-height:520px;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    overflow:hidden;
+  }
+  .panel::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:1px;
+    background:linear-gradient(90deg, transparent, var(--cyan), var(--violet), transparent);
+    opacity:0.6;
+  }
+  .watermark{
+    position:absolute;
+    top:50%; left:50%;
+    width:640px; height:640px;
+    transform:translate(-50%,-50%);
+    opacity:0.05;
+    pointer-events:none;
+    z-index:0;
+  }
+  .watermark svg{width:100%; height:100%;}
+  .panel > *:not(.watermark){position:relative; z-index:1;}
+
+  .screen{display:none; flex-direction:column; flex:1;}
+  .screen.active{display:flex;}
+
+  h1.hero-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:1.7rem;
+    margin:0 0 4px;
+    background:linear-gradient(90deg, var(--text), var(--cyan));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .hero-sub{
+    color:var(--muted);
+    font-size:0.85rem;
+    margin-bottom:26px;
+  }
+
+  .field-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.14em;
+    color:var(--muted);
+    margin-bottom:10px;
+    margin-top:20px;
+  }
+  .field-label:first-of-type{margin-top:0;}
+
+  input[type=text]{
+    font-family:'Inter', sans-serif;
+    font-size:0.95rem;
+    width:100%;
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px 14px;
+    color:var(--text);
+    outline:none;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  input[type=text]:focus{border-color:var(--cyan); background:rgba(76,224,210,0.06);}
+  input[type=text]::placeholder{color:var(--muted);}
+
+  .card-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    gap:10px;
+  }
+  .cat-card{
+    display:flex; flex-direction:column; gap:8px;
+    padding:14px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:rgba(255,255,255,0.03);
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .cat-card:hover{border-color:rgba(76,224,210,0.4); transform:translateY(-2px);}
+  .cat-card.selected{
+    border-color:var(--cyan);
+    background:rgba(76,224,210,0.08);
+    box-shadow:0 0 0 1px rgba(76,224,210,0.3), 0 8px 20px rgba(76,224,210,0.12);
+  }
+  .cat-card .icon{width:22px; height:22px; color:var(--cyan);}
+  .cat-card .label{font-weight:600; font-size:0.9rem;}
+  .cat-card .sub{font-size:0.7rem; color:var(--muted); font-family:'JetBrains Mono', monospace;}
+
+  .diff-row{display:flex; gap:10px;}
+  .diff-pill{
+    flex:1;
+    text-align:center;
+    padding:12px 8px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:rgba(255,255,255,0.03);
+    cursor:pointer;
+    font-family:'JetBrains Mono', monospace;
+    font-weight:600;
+    font-size:0.82rem;
+    transition:all .15s ease;
+    position:relative;
+  }
+  .diff-pill:hover{transform:translateY(-2px);}
+  .diff-pill.count.selected{border-color:var(--cyan); background:rgba(76,224,210,0.1); color:var(--cyan); box-shadow:0 0 20px rgba(76,224,210,0.15);}
+  .diff-pill[data-level="Easy"].selected{border-color:var(--correct); background:rgba(62,207,142,0.1); color:var(--correct); box-shadow:0 0 20px rgba(62,207,142,0.15);}
+  .diff-pill[data-level="Moderate"].selected{border-color:var(--amber); background:rgba(255,193,104,0.1); color:var(--amber); box-shadow:0 0 20px rgba(255,193,104,0.15);}
+  .diff-pill[data-level="Hard"].selected{border-color:var(--wrong); background:rgba(255,107,122,0.1); color:var(--wrong); box-shadow:0 0 20px rgba(255,107,122,0.15);}
+
+  button.btn{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:0.92rem;
+    letter-spacing:0.01em;
+    background:linear-gradient(90deg, var(--cyan), var(--violet));
+    color:#081018;
+    border:none;
+    border-radius:12px;
+    padding:14px 22px;
+    cursor:pointer;
+    margin-top:auto;
+    transition:opacity .15s ease, transform .1s ease;
+  }
+  button.btn:hover{opacity:0.9;}
+  button.btn:active{transform:scale(0.98);}
+  button.btn:disabled{background:rgba(255,255,255,0.08); color:var(--muted); cursor:not-allowed;}
+  button.btn.secondary{
+    background:rgba(255,255,255,0.06);
+    color:var(--text);
+    border:1px solid var(--border);
+  }
+  button.btn.secondary:hover{background:rgba(255,255,255,0.1); opacity:1;}
+  .row-buttons{display:flex; gap:12px; margin-top:auto;}
+  .row-buttons .btn{margin-top:0; flex:1;}
+
+  /* GAME SCREEN */
+  .quiz-top{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:22px;
+  }
+  .quiz-progress-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.72rem;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+  }
+  .timer-ring-wrap{position:relative; width:52px; height:52px;}
+  .timer-ring-wrap svg{transform:rotate(-90deg);}
+  .timer-ring-bg{fill:none; stroke:rgba(255,255,255,0.08); stroke-width:4;}
+  .timer-ring-fill{
+    fill:none; stroke:var(--cyan); stroke-width:4; stroke-linecap:round;
+    transition:stroke-dashoffset 1s linear, stroke .3s ease;
+  }
+  .timer-num{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700; font-size:0.85rem;
+  }
+
+  .progress-track{
+    height:4px; background:rgba(255,255,255,0.08); border-radius:4px;
+    margin-bottom:22px; overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    background:linear-gradient(90deg, var(--cyan), var(--violet));
+    transition:width .3s ease;
+  }
+
+  .question-text{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:1.15rem;
+    line-height:1.5;
+    margin-bottom:22px;
+  }
+
+  .answers{display:flex; flex-direction:column; gap:10px; margin-bottom:8px;}
+  .answer-option{
+    display:flex; align-items:center; gap:12px;
+    padding:13px 15px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    cursor:pointer;
+    background:rgba(255,255,255,0.03);
+    transition:all .15s ease;
+  }
+  .answer-option:hover{background:rgba(76,224,210,0.06); border-color:rgba(76,224,210,0.3);}
+  .answer-option .letter{
+    width:26px; height:26px; border-radius:8px;
+    border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.75rem; font-weight:700;
+    flex-shrink:0;
+    color:var(--muted);
+  }
+  .answer-option .txt{font-size:0.9rem;}
+  .answer-option.correct{
+    background:rgba(62,207,142,0.1); border-color:var(--correct);
+    box-shadow:0 0 20px rgba(62,207,142,0.15);
+  }
+  .answer-option.correct .letter{border-color:var(--correct); color:var(--correct);}
+  .answer-option.wrong{
+    background:rgba(255,107,122,0.1); border-color:var(--wrong);
+    box-shadow:0 0 20px rgba(255,107,122,0.15);
+  }
+  .answer-option.wrong .letter{border-color:var(--wrong); color:var(--wrong);}
+  .answer-option.disabled{cursor:default;}
+
+  .pulse-flash{
+    position:absolute; inset:0;
+    border-radius:20px;
+    pointer-events:none;
+    opacity:0;
+  }
+  .pulse-flash.show{animation:pulseFlash .6s ease-out forwards;}
+  .pulse-flash.correct{box-shadow:inset 0 0 80px rgba(62,207,142,0.5);}
+  .pulse-flash.wrong{box-shadow:inset 0 0 80px rgba(255,107,122,0.5);}
+  @keyframes pulseFlash{
+    0%{opacity:0;}
+    30%{opacity:1;}
+    100%{opacity:0;}
+  }
+
+  /* RESULTS SCREEN */
+  .results-top{
+    display:flex; align-items:center; gap:22px; margin-bottom:24px;
+  }
+  .score-ring-wrap{position:relative; width:104px; height:104px; flex-shrink:0;}
+  .score-ring-wrap svg{transform:rotate(-90deg);}
+  .score-ring-bg{fill:none; stroke:rgba(255,255,255,0.08); stroke-width:7;}
+  .score-ring-fill{
+    fill:none; stroke:url(#scoreGrad); stroke-width:7; stroke-linecap:round;
+    transition:stroke-dashoffset 1s ease;
+  }
+  .score-ring-text{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700; font-size:1.5rem;
+  }
+  .results-meta .grade-word{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    color:var(--muted);
+    margin-bottom:4px;
+  }
+  .results-meta .score-line{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:1.1rem;
+    margin-bottom:6px;
+  }
+  .results-meta .tag-line{
+    font-size:0.78rem;
+    color:var(--muted);
+  }
+
+  .scoreboard{
+    border-top:1px solid var(--border);
+    padding-top:16px;
+    margin-top:auto;
+  }
+  .scoreboard h3{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    color:var(--muted);
+    margin:0 0 12px;
+  }
+  .score-entry{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:0.82rem;
+    padding:9px 0;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+  }
+  .score-entry:last-child{border-bottom:none;}
+  .score-entry .who{font-weight:600;}
+  .score-entry .meta{color:var(--muted); font-size:0.72rem; font-family:'JetBrains Mono', monospace;}
+
+  @media (max-width:480px){
+    .panel{padding:24px 18px;}
+    h1.hero-title{font-size:1.4rem;}
+    .score-ring-wrap{width:84px; height:84px;}
+    .score-ring-text{font-size:1.2rem;}
+  }
+
+  /* ================= ENHANCEMENTS ================= */
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important;}
+  }
+
+  /* particle canvas */
+  #particles{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+  }
+
+  /* ---- splash / boot screen ---- */
+  #splash{
+    position:fixed; inset:0; z-index:50;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:var(--bg);
+    gap:22px;
+    transition:opacity .6s ease, visibility .6s ease;
+  }
+  #splash.hide{opacity:0; visibility:hidden; pointer-events:none;}
+  .splash-atom{width:64px; height:64px; position:relative;}
+  .splash-atom .core{
+    position:absolute; top:50%; left:50%; width:14px; height:14px; border-radius:50%;
+    background:var(--cyan); transform:translate(-50%,-50%);
+    box-shadow:0 0 22px var(--cyan), 0 0 50px rgba(76,224,210,0.5);
+    animation:corePulse 1.6s ease-in-out infinite;
+  }
+  @keyframes corePulse{0%,100%{transform:translate(-50%,-50%) scale(1);} 50%{transform:translate(-50%,-50%) scale(1.25);}}
+  .splash-atom .ring{position:absolute; inset:0; border:2px solid rgba(76,224,210,0.45); border-radius:50%;}
+  .splash-atom .ring.r2{transform:rotate(60deg); border-color:rgba(156,140,251,0.45);}
+  .splash-atom .ring.r3{transform:rotate(-60deg); border-color:rgba(255,193,104,0.35);}
+  .splash-atom .electron{
+    position:absolute; top:-3px; left:50%; width:8px; height:8px; margin-left:-4px; border-radius:50%;
+    background:var(--violet); box-shadow:0 0 12px var(--violet);
+    animation:orbit 2.2s linear infinite;
+  }
+  .splash-title{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:1.3rem;
+    letter-spacing:0.02em;
+    background:linear-gradient(90deg, var(--cyan), var(--violet));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .splash-sub{
+    font-family:'JetBrains Mono', monospace; font-size:0.72rem; color:var(--muted);
+    letter-spacing:0.08em; text-transform:uppercase; min-height:1em;
+  }
+  .splash-sub .caret{display:inline-block; width:6px; height:11px; background:var(--cyan); margin-left:2px; vertical-align:-1px; animation:blink 0.9s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .splash-bar{
+    width:180px; height:3px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden;
+  }
+  .splash-bar-fill{
+    height:100%; width:0%; border-radius:3px;
+    background:linear-gradient(90deg, var(--cyan), var(--violet));
+    animation:splashLoad 1.7s cubic-bezier(.4,0,.2,1) forwards;
+  }
+  @keyframes splashLoad{ to{width:100%;} }
+
+  /* console entrance */
+  .console{animation:consoleIn .7s cubic-bezier(.16,1,.3,1) both; animation-delay:1.5s;}
+  @keyframes consoleIn{
+    from{opacity:0; transform:translateY(18px) scale(0.98);}
+    to{opacity:1; transform:translateY(0) scale(1);}
+  }
+
+  /* title glow breathing */
+  h1.hero-title{animation:titleGlow 4s ease-in-out infinite;}
+  @keyframes titleGlow{
+    0%,100%{filter:drop-shadow(0 0 0 rgba(76,224,210,0));}
+    50%{filter:drop-shadow(0 0 10px rgba(76,224,210,0.35));}
+  }
+
+  /* screen transitions (entrance animation only, layout stays in normal flow) */
+  .screen.active{
+    animation:screenIn .45s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes screenIn{
+    from{opacity:0; transform:translateX(14px);}
+    to{opacity:1; transform:translateX(0);}
+  }
+
+  /* staggered entrance for interactive rows */
+  .cat-card, .diff-pill{
+    animation:itemIn .5s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes itemIn{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+
+  /* card hover polish */
+  .cat-card{will-change:transform;}
+  .cat-card:hover{transform:translateY(-3px) scale(1.015);}
+  .cat-card.selected{animation:selectPop .35s ease;}
+  @keyframes selectPop{0%{transform:scale(0.97);} 60%{transform:scale(1.02);} 100%{transform:scale(1);}}
+
+  /* button ripple */
+  button.btn{position:relative; overflow:hidden;}
+  .ripple{
+    position:absolute; border-radius:50%; background:rgba(255,255,255,0.5);
+    transform:scale(0); animation:rippleAnim .55s ease-out forwards;
+    pointer-events:none;
+  }
+  @keyframes rippleAnim{ to{transform:scale(2.6); opacity:0;} }
+
+  /* answer option entrance + tap feedback */
+  .answer-option{animation:answerIn .4s cubic-bezier(.16,1,.3,1) both; will-change:transform;}
+  .answer-option:active{transform:scale(0.985);}
+  .answer-option.correct{animation:correctPop .4s ease;}
+  .answer-option.wrong{animation:shakeWrong .4s ease;}
+  @keyframes correctPop{0%{transform:scale(1);} 40%{transform:scale(1.02);} 100%{transform:scale(1);}}
+  @keyframes shakeWrong{
+    0%,100%{transform:translateX(0);}
+    25%{transform:translateX(-5px);}
+    75%{transform:translateX(5px);}
+  }
+
+  /* timer low state pulse */
+  .timer-ring-wrap.low .timer-num{animation:timerPulse 0.9s ease-in-out infinite;}
+  @keyframes timerPulse{0%,100%{transform:scale(1); color:var(--wrong);} 50%{transform:scale(1.18); color:var(--wrong);}}
+
+  /* streak badge */
+  .streak-badge{
+    display:flex; align-items:center; gap:5px;
+    font-family:'JetBrains Mono', monospace; font-weight:700; font-size:0.72rem;
+    color:var(--amber);
+    background:rgba(255,193,104,0.08);
+    border:1px solid rgba(255,193,104,0.25);
+    padding:5px 10px; border-radius:20px;
+    opacity:0; transform:translateY(-6px) scale(0.8);
+    transition:opacity .25s ease, transform .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  .streak-badge.show{opacity:1; transform:translateY(0) scale(1);}
+  .streak-badge .flame{animation:flameFlicker 0.6s ease-in-out infinite alternate;}
+  @keyframes flameFlicker{from{transform:scale(1) rotate(-2deg);} to{transform:scale(1.12) rotate(2deg);}}
+
+  /* score ring reveal glow */
+  .score-ring-wrap{animation:scoreRingIn .5s cubic-bezier(.16,1,.3,1) both;}
+  @keyframes scoreRingIn{from{opacity:0; transform:scale(0.85);} to{opacity:1; transform:scale(1);}}
+  .grade-word, .score-line, .tag-line{animation:fadeUpSmall .5s cubic-bezier(.16,1,.3,1) both;}
+  .score-line{animation-delay:.08s;}
+  .tag-line{animation-delay:.14s;}
+  @keyframes fadeUpSmall{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+  /* confetti canvas */
+  #confetti{position:fixed; inset:0; z-index:40; pointer-events:none;}
+
+  /* sound toggle */
+  .sound-toggle{
+    display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:8px;
+    border:1px solid var(--border); background:rgba(255,255,255,0.03);
+    color:var(--muted); cursor:pointer; transition:all .15s ease;
+    margin-left:10px;
+  }
+  .sound-toggle:hover{color:var(--cyan); border-color:rgba(76,224,210,0.35);}
+  .sound-toggle svg{width:14px; height:14px;}
+  .status-row{display:flex; align-items:center;}
+
+
+  /* ================= AESTHETIC MOTION LAYER ================= */
+  /* drifting aurora glow behind the console */
+  body::after{
+    content:""; position:fixed; inset:-20%; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(circle 360px at 20% 30%, rgba(76,224,210,0.13), transparent 70%),
+      radial-gradient(circle 420px at 80% 70%, rgba(156,140,251,0.14), transparent 70%),
+      radial-gradient(circle 300px at 60% 15%, rgba(255,193,104,0.07), transparent 70%);
+    filter:blur(30px);
+    animation:aurora 18s ease-in-out infinite alternate;
+  }
+  @keyframes aurora{
+    0%{transform:translate(-3%,-2%) scale(1);}
+    50%{transform:translate(4%,3%) scale(1.08);}
+    100%{transform:translate(-2%,5%) scale(1.02);}
+  }
+
+  /* panel: gently floating glass with a flowing top line */
+  .panel{animation:panelFloat 7s ease-in-out infinite;}
+  @keyframes panelFloat{0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);}}
+  .panel::before{
+    background:linear-gradient(90deg, transparent, var(--cyan), var(--violet), var(--cyan), transparent);
+    background-size:200% 100%;
+    animation:flowLine 4s linear infinite;
+  }
+  @keyframes flowLine{from{background-position:0% 0;} to{background-position:200% 0;}}
+
+  /* category cards: lift, glow, light sweep */
+  .cat-card{position:relative; overflow:hidden; transition:transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s ease, border-color .25s ease, background .25s ease;}
+  .cat-card::after{
+    content:""; position:absolute; top:0; left:-60%; width:40%; height:100%;
+    background:linear-gradient(100deg, transparent, rgba(255,255,255,0.12), transparent);
+    transform:skewX(-20deg); transition:left .6s ease; pointer-events:none;
+  }
+  .cat-card:hover{transform:translateY(-4px); box-shadow:0 12px 30px rgba(76,224,210,0.14);}
+  .cat-card:hover::after{left:130%;}
+  .cat-card.selected{animation:selectPop .35s ease, glowBreathe 2.6s ease-in-out .35s infinite;}
+  @keyframes glowBreathe{
+    0%,100%{box-shadow:0 0 0 rgba(76,224,210,0);}
+    50%{box-shadow:0 0 24px rgba(76,224,210,0.28);}
+  }
+  .diff-pill.selected{animation:selectPop .35s ease;}
+
+  /* start button: breathing glow when ready, shimmer sweep on hover */
+  button.btn:not(:disabled){animation:btnBreathe 2.8s ease-in-out infinite;}
+  @keyframes btnBreathe{
+    0%,100%{box-shadow:0 0 0 rgba(76,224,210,0);}
+    50%{box-shadow:0 6px 28px rgba(76,224,210,0.35);}
+  }
+  button.btn::after{
+    content:""; position:absolute; top:0; left:-70%; width:50%; height:100%;
+    background:linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform:skewX(-20deg); pointer-events:none;
+  }
+  button.btn:not(:disabled):hover::after{left:140%; transition:left .7s ease;}
+
+  /* progress bar: glowing, moving highlight */
+  .progress-fill{
+    position:relative;
+    background-size:200% 100%;
+    box-shadow:0 0 12px rgba(76,224,210,0.6);
+    transition:width .6s cubic-bezier(.16,1,.3,1);
+  }
+  .progress-fill::after{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+    animation:barShine 2.2s ease-in-out infinite;
+  }
+  @keyframes barShine{from{transform:translateX(-100%);} to{transform:translateX(100%);}}
+
+  /* question text + options entrance (re-triggered on every question) */
+  .question-text{animation:qIn .55s cubic-bezier(.16,1,.3,1) both;}
+  @keyframes qIn{from{opacity:0; transform:translateY(12px); filter:blur(4px);} to{opacity:1; transform:none; filter:blur(0);}}
+  .answer-option{animation:optIn .55s cubic-bezier(.16,1,.3,1) both;}
+  @keyframes optIn{from{opacity:0; transform:translateX(-18px);} to{opacity:1; transform:translateX(0);}}
+  .answer-option:not(.correct):not(.wrong):hover{transform:translateX(6px);}
+  .answer-option.correct{animation:correctPop .45s ease, ringOut .8s ease-out;}
+  @keyframes ringOut{
+    from{box-shadow:0 0 0 0 rgba(62,207,142,0.55);}
+    to{box-shadow:0 0 0 16px rgba(62,207,142,0);}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+<canvas id="confetti"></canvas>
+
+<div id="splash">
+  <div class="splash-atom">
+    <div class="ring r2"></div>
+    <div class="ring r3"></div>
+    <div class="core"></div>
+    <div class="electron"></div>
+  </div>
+  <div class="splash-title">Quiz Game</div>
+  <div class="splash-sub" id="splashSub">Booting session<span class="caret"></span></div>
+  <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+</div>
+
+<div class="bg-watermark">
+  <svg viewBox="0 0 400 400" fill="none" stroke="#4CE0D2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="200" cy="120" r="26"/>
+    <path d="M176 108c6-14 42-14 48 0"/>
+    <path d="M200 146v14"/>
+    <path d="M165 232c0-40 15-72 35-72h0c20 0 35 32 35 72"/>
+    <path d="M170 190c-10 14-16 30-18 42"/>
+    <path d="M230 190c10 14 16 30 18 42"/>
+    <path d="M170 232c-20 10-40 12-58 8"/>
+    <path d="M230 232c20 10 40 12 58 8"/>
+    <path d="M112 240c-6 8-8 18-6 26"/>
+    <path d="M288 240c6 8 8 18 6 26"/>
+    <path d="M150 236h100l14 20H136z"/>
+    <path d="M158 236l-10-88h104l-10 88"/>
+    <path d="M168 168h64M168 182h48M168 196h56"/>
+    <circle cx="262" cy="88" r="3"/>
+    <circle cx="280" cy="102" r="2"/>
+    <path d="M260 94l14 10"/>
+  </svg>
+</div>
+
+
+<div class="console">
+  <div class="topbar">
+    <div class="brand">
+      <div class="atom">
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+        <div class="core"></div>
+        <div class="electron"></div>
+      </div>
+      <div class="brand-name">Quiz Game</div>
+    </div>
+    <div class="status-row">
+      <div class="status-dot"><span class="dot"></span> <span id="apiStatus">Session Active</span></div>
+      <div class="sound-toggle" id="soundToggle" title="Toggle sound">
+        <svg id="soundIconOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a9 9 0 0 1 0 12"/></svg>
+        <svg id="soundIconOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel">
+
+    <div class="watermark">
+      <svg viewBox="0 0 400 400" fill="none" stroke="#9C8CFB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="200" cy="120" r="26"/>
+        <path d="M176 108c6-14 42-14 48 0"/>
+        <path d="M200 146v14"/>
+        <path d="M165 232c0-40 15-72 35-72h0c20 0 35 32 35 72"/>
+        <path d="M170 190c-10 14-16 30-18 42"/>
+        <path d="M230 190c10 14 16 30 18 42"/>
+        <path d="M170 232c-20 10-40 12-58 8"/>
+        <path d="M230 232c20 10 40 12 58 8"/>
+        <path d="M112 240c-6 8-8 18-6 26"/>
+        <path d="M288 240c6 8 8 18 6 26"/>
+        <path d="M150 236h100l14 20H136z"/>
+        <path d="M158 236l-10-88h104l-10 88"/>
+        <path d="M168 168h64M168 182h48M168 196h56"/>
+        <circle cx="262" cy="88" r="3"/>
+        <circle cx="280" cy="102" r="2"/>
+        <path d="M260 94l14 10"/>
+      </svg>
+    </div>
+
+    <!-- START SCREEN -->
+    <section class="screen active" id="screen-start">
+      <h1 class="hero-title">Run the exam</h1>
+      <div class="hero-sub">Pick a subject and difficulty to begin your test session.</div>
+
+      <div class="field-label">Candidate Name</div>
+      <input type="text" id="playerName" placeholder="Enter your name" maxlength="24">
+
+      <div class="field-label">Subject</div>
+      <div class="card-grid" id="categoryGrid"></div>
+
+      <div class="field-label">Difficulty</div>
+      <div class="diff-row" id="difficultyGrid"></div>
+
+      <div class="field-label">Number of Questions</div>
+      <div class="diff-row" id="countGrid"></div>
+
+      <button class="btn" id="startBtn" disabled style="margin-top:26px;">Start Test →</button>
+    </section>
+
+    <!-- GAME SCREEN -->
+    <section class="screen" id="screen-quiz">
+      <div class="quiz-top">
+        <span class="quiz-progress-label" id="quizProgressLabel">Question 1 / 8</span>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="streak-badge" id="streakBadge"><span class="flame">🔥</span><span id="streakCount">0</span> streak</div>
+          <div class="timer-ring-wrap" id="timerRingWrap">
+            <svg width="52" height="52">
+              <circle class="timer-ring-bg" cx="26" cy="26" r="22"></circle>
+              <circle class="timer-ring-fill" id="timerRing" cx="26" cy="26" r="22"></circle>
+            </svg>
+            <div class="timer-num" id="timerDisplay">15</div>
+          </div>
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="question-text" id="questionText"></div>
+      <div class="answers" id="answersList"></div>
+      <div class="pulse-flash" id="pulseFlash"></div>
+    </section>
+
+    <!-- RESULTS SCREEN -->
+    <section class="screen" id="screen-results">
+      <div class="field-label" style="margin-top:0;">Session Complete</div>
+      <div class="results-top">
+        <div class="score-ring-wrap">
+          <svg width="104" height="104">
+            <defs>
+              <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#4CE0D2"/>
+                <stop offset="100%" stop-color="#9C8CFB"/>
+              </linearGradient>
+            </defs>
+            <circle class="score-ring-bg" cx="52" cy="52" r="45"></circle>
+            <circle class="score-ring-fill" id="scoreRing" cx="52" cy="52" r="45"></circle>
+          </svg>
+          <div class="score-ring-text" id="scorePct">0%</div>
+        </div>
+        <div class="results-meta">
+          <div class="grade-word" id="gradeWord">GRADE</div>
+          <div class="score-line" id="gradeScore">0 / 0 correct</div>
+          <div class="tag-line" id="gradeDetail">—</div>
+        </div>
+      </div>
+      <div class="row-buttons">
+        <button class="btn" id="retryBtn">Retake Test</button>
+        <button class="btn secondary" id="menuBtn">New Subject</button>
+      </div>
+      <div class="scoreboard">
+        <h3>Top Scores — This Session</h3>
+        <div id="scoreList"></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const QUESTIONS = {
+  "General Knowledge": {
+    "Easy": [
+      {q:"What is the capital of France?", options:["Berlin","Madrid","Paris","Rome"], answer:"Paris"},
+      {q:"How many continents are there on Earth?", options:["5","6","7","8"], answer:"7"},
+      {q:"Which color do you get by mixing blue and yellow?", options:["Purple","Green","Orange","Brown"], answer:"Green"},
+      {q:"What is the capital of India?", options:["Mumbai","New Delhi","Kolkata","Chennai"], answer:"New Delhi"},
+      {q:"How many days are there in a leap year?", options:["364","365","366","367"], answer:"366"},
+      {q:"Which animal is known as the 'Ship of the Desert'?", options:["Horse","Camel","Elephant","Donkey"], answer:"Camel"},
+      {q:"What is the largest ocean on Earth?", options:["Atlantic","Indian","Arctic","Pacific"], answer:"Pacific"},
+      {q:"Which festival is known as the 'Festival of Lights'?", options:["Holi","Diwali","Eid","Christmas"], answer:"Diwali"}
+    ],
+    "Moderate": [
+      {q:"Which planet is known as the Red Planet?", options:["Earth","Mars","Jupiter","Venus"], answer:"Mars"},
+      {q:"Who wrote the play 'Romeo and Juliet'?", options:["Charles Dickens","William Shakespeare","Mark Twain","Leo Tolstoy"], answer:"William Shakespeare"},
+      {q:"Which country is home to the Great Barrier Reef?", options:["Brazil","Australia","Mexico","India"], answer:"Australia"},
+      {q:"Who was the first Prime Minister of India?", options:["Mahatma Gandhi","Jawaharlal Nehru","Sardar Patel","Rajendra Prasad"], answer:"Jawaharlal Nehru"},
+      {q:"Which is the longest river in the world?", options:["Amazon","Nile","Ganges","Yangtze"], answer:"Nile"},
+      {q:"The Eiffel Tower is located in which city?", options:["London","Rome","Paris","Berlin"], answer:"Paris"},
+      {q:"Which currency is used in Japan?", options:["Won","Yuan","Yen","Ringgit"], answer:"Yen"},
+      {q:"Which Indian state is known as the 'Land of Five Rivers'?", options:["Punjab","Kerala","Assam","Gujarat"], answer:"Punjab"}
+    ],
+    "Hard": [
+      {q:"Which country has the most time zones?", options:["Russia","USA","France","China"], answer:"France"},
+      {q:"What is the smallest country in the world by area?", options:["Monaco","San Marino","Vatican City","Liechtenstein"], answer:"Vatican City"},
+      {q:"In which year did the Berlin Wall fall?", options:["1987","1989","1991","1993"], answer:"1989"},
+      {q:"Who was the first person to walk on the Moon?", options:["Buzz Aldrin","Yuri Gagarin","Neil Armstrong","John Glenn"], answer:"Neil Armstrong"},
+      {q:"Which treaty ended World War I?", options:["Treaty of Paris","Treaty of Versailles","Treaty of Rome","Treaty of Ghent"], answer:"Treaty of Versailles"},
+      {q:"Which is the only country to have used a nuclear weapon in war?", options:["Russia","USA","Germany","UK"], answer:"USA"},
+      {q:"What was the former name of Sri Lanka?", options:["Ceylon","Siam","Burma","Persia"], answer:"Ceylon"},
+      {q:"Which mountain range separates Europe and Asia?", options:["Alps","Andes","Ural Mountains","Himalayas"], answer:"Ural Mountains"}
+    ]
+  },
+  "Computer Science": {
+    "Easy": [
+      {q:"What does CPU stand for?", options:["Central Process Unit","Central Processing Unit","Computer Personal Unit","Central Processor Utility"], answer:"Central Processing Unit"},
+      {q:"What does 'HTML' stand for?", options:["Hyper Trainer Markup Language","HyperText Markup Language","Hyper Text Marketing Language","HyperText Machine Language"], answer:"HyperText Markup Language"},
+      {q:"Which of these is a programming language?", options:["Photoshop","Python","Excel","Windows"], answer:"Python"},
+      {q:"What does 'RAM' stand for?", options:["Random Access Memory","Read Access Memory","Random Active Memory","Run Access Memory"], answer:"Random Access Memory"},
+      {q:"Which company developed the Windows operating system?", options:["Apple","Google","Microsoft","IBM"], answer:"Microsoft"},
+      {q:"What symbol is used for comments in Python?", options:["//","#","<!-- -->","/* */"], answer:"#"},
+      {q:"What does 'URL' stand for?", options:["Uniform Resource Locator","Universal Result Link","Unique Resource Locator","Uniform Result Locator"], answer:"Uniform Resource Locator"},
+      {q:"Which of these is an input device?", options:["Monitor","Printer","Keyboard","Speaker"], answer:"Keyboard"}
+    ],
+    "Moderate": [
+      {q:"Which data structure uses FIFO order?", options:["Stack","Queue","Tree","Graph"], answer:"Queue"},
+      {q:"What does 'SQL' stand for?", options:["Structured Query Language","Simple Query Logic","Sequential Query Language","Structured Question Language"], answer:"Structured Query Language"},
+      {q:"Which sorting algorithm has the best average time complexity?", options:["Bubble Sort","Selection Sort","Quick Sort","Insertion Sort"], answer:"Quick Sort"},
+      {q:"Which language is primarily used for styling web pages?", options:["HTML","CSS","Python","Java"], answer:"CSS"},
+      {q:"What does 'API' stand for?", options:["Application Programming Interface","Applied Program Interaction","Application Process Integration","Advanced Programming Interface"], answer:"Application Programming Interface"},
+      {q:"Which data structure uses LIFO order?", options:["Queue","Stack","Array","Linked List"], answer:"Stack"},
+      {q:"What is the binary equivalent of decimal 10?", options:["1010","1001","1100","1110"], answer:"1010"},
+      {q:"Which of these is a NoSQL database?", options:["MySQL","PostgreSQL","MongoDB","Oracle"], answer:"MongoDB"}
+    ],
+    "Hard": [
+      {q:"What is the time complexity of binary search?", options:["O(n)","O(n log n)","O(log n)","O(1)"], answer:"O(log n)"},
+      {q:"Which data structure is used to implement recursion internally?", options:["Queue","Stack","Heap","Linked List"], answer:"Stack"},
+      {q:"In OOP, what is deriving a new class from an existing one called?", options:["Encapsulation","Polymorphism","Inheritance","Abstraction"], answer:"Inheritance"},
+      {q:"What is the worst-case time complexity of Quick Sort?", options:["O(n)","O(n log n)","O(n^2)","O(log n)"], answer:"O(n^2)"},
+      {q:"Which normal form removes transitive dependency in a database?", options:["1NF","2NF","3NF","BCNF"], answer:"3NF"},
+      {q:"What does 'deadlock' mean in operating systems?", options:["A crashed program","Two processes waiting forever for each other","A memory leak","A fast process"], answer:"Two processes waiting forever for each other"},
+      {q:"Which traversal visits the root node first?", options:["Inorder","Preorder","Postorder","Level order"], answer:"Preorder"},
+      {q:"What is the space complexity of an algorithm generally measured in?", options:["Time","Extra memory used","Number of lines of code","CPU speed"], answer:"Extra memory used"}
+    ]
+  }
+};
+
+// ---- Offline bank: subject-wise questions for the new subjects ----
+const B = (q,a,...w) => ({q, options:[a,...w], answer:a});
+Object.assign(QUESTIONS, {
+"Mathematics":{
+ Easy:[B("What is 7 × 8?","56","54","48","64"),B("Sum of angles in a triangle?","180°","90°","270°","360°"),B("Square root of 81?","9","8","7","11"),B("What is 15% of 200?","30","20","25","35")],
+ Moderate:[B("What is 2 to the power 10?","1024","512","2048","100"),B("Derivative of x²?","2x","x","x²","2"),B("Area of a circle with radius 7 (π = 22/7)?","154","44","144","49"),B("Sum of numbers 1 to 100?","5050","5000","5100","4950")],
+ Hard:[B("Determinant of [[1,2],[3,4]]?","-2","2","10","-10"),B("Number of diagonals in a hexagon?","9","6","12","15"),B("Limit of sin(x)/x as x → 0?","1","0","∞","-1"),B("How many prime numbers are below 20?","8","7","9","10")]},
+"History":{
+ Easy:[B("First Prime Minister of India?","Jawaharlal Nehru","Sardar Patel","Lal Bahadur Shastri","Indira Gandhi"),B("India became independent in?","1947","1942","1950","1935"),B("Who reached the Americas in 1492?","Christopher Columbus","Vasco da Gama","Magellan","James Cook"),B("The Pyramids of Giza are in?","Egypt","Mexico","Sudan","Iraq")],
+ Moderate:[B("World War II ended in?","1945","1939","1918","1950"),B("French Revolution began in?","1789","1776","1815","1804"),B("Battle of Plassey was fought in?","1757","1857","1699","1764"),B("Who built the Taj Mahal?","Shah Jahan","Akbar","Aurangzeb","Humayun")],
+ Hard:[B("Treaty of Versailles was signed in?","1919","1815","1945","1648"),B("Magna Carta was sealed in?","1215","1066","1492","1348"),B("First Mughal emperor?","Babur","Akbar","Humayun","Jahangir"),B("Constantinople fell to the Ottomans in?","1453","1492","1204","1526")]},
+"Aptitude":{
+ Easy:[B("What is 25% of 480?","120","100","140","80"),B("Next number: 2, 4, 8, 16, ?","32","24","30","36"),B("Average of 10, 20 and 30?","20","15","25","30"),B("A train goes 60 km in 1 hour. Distance in 3 hours?","180 km","120 km","160 km","200 km"),B("Simplify the ratio 12:18","2:3","3:2","4:5","6:7"),B("CP = ₹100, SP = ₹120. Profit %?","20%","10%","12%","25%"),B("Odd one out: Apple, Mango, Potato, Banana","Potato","Apple","Mango","Banana"),B("Simple interest on ₹1000 at 10% for 2 years?","₹200","₹100","₹210","₹220")],
+ Moderate:[B("A does a job in 10 days, B in 15 days. Together?","6 days","5 days","8 days","12 days"),B("72 km/h in m/s?","20 m/s","25 m/s","18 m/s","15 m/s"),B("Next number: 1, 4, 9, 16, ?","25","20","24","36"),B("Marked price ₹500 with 20% discount. Selling price?","₹400","₹450","₹380","₹420"),B("Probability of a head in one coin toss?","1/2","1/4","1","1/3"),B("Compound interest on ₹1000 at 10% for 2 years?","₹210","₹200","₹220","₹100"),B("Average of first 5 natural numbers?","3","2.5","4","5"),B("A 150 m train crosses a pole in 10 s. Speed?","15 m/s","10 m/s","20 m/s","25 m/s")],
+ Hard:[B("Two 100 m trains run in opposite directions at 60 and 40 km/h. Time to cross each other?","7.2 s","6 s","8 s","9 s"),B("Ways to arrange the letters of LEVEL?","30","60","120","20"),B("Probability that two dice sum to 7?","1/6","1/12","1/9","5/36"),B("A:B = 2:3 and B:C = 4:5. A:B:C?","8:12:15","2:3:5","4:6:5","8:10:15"),B("Pipe A fills a tank in 20 min, pipe B empties it in 30 min. Both open, time to fill?","60 min","50 min","25 min","30 min"),B("Next number: 2, 6, 12, 20, 30, ?","42","40","36","44"),B("A number is increased by 20% then decreased by 20%. Net change?","4% decrease","No change","4% increase","2% decrease"),B("Value of 5P2?","20","10","25","60")]},
+"DBMS":{
+ Easy:[B("DBMS stands for?","Database Management System","Data Backup Management System","Digital Base Management Software","Database Maintenance Service"),B("SQL stands for?","Structured Query Language","Simple Query Language","Sequential Query Logic","Standard Question Language"),B("Which command retrieves data?","SELECT","INSERT","UPDATE","DELETE"),B("A primary key must be?","Unique and not null","Only unique","Only numeric","Repeated"),B("A row in a table is also called?","Tuple","Attribute","Domain","Schema"),B("Which command deletes a whole table?","DROP","REMOVE","CLEAR","ERASE"),B("Which of these is a relational database?","MySQL","MongoDB","Redis","Neo4j"),B("Which command adds new rows?","INSERT","ADD","CREATE ROW","APPEND")],
+ Moderate:[B("Which normal form removes partial dependency?","2NF","1NF","3NF","BCNF"),B("In ACID, 'A' stands for?","Atomicity","Availability","Accuracy","Authorization"),B("A foreign key refers to?","Primary key of another table","Any column","A view","An index"),B("Which clause filters grouped results?","HAVING","WHERE","ORDER BY","LIMIT"),B("CREATE belongs to which language?","DDL","DML","DCL","TCL"),B("Which join returns all rows of the left table?","LEFT JOIN","INNER JOIN","CROSS JOIN","SELF JOIN"),B("COMMIT belongs to which language?","TCL","DDL","DML","DQL"),B("Which keyword removes duplicate rows in a result?","DISTINCT","UNIQUE ROWS","NODUP","SINGLE")],
+ Hard:[B("BCNF is a stricter form of?","3NF","1NF","2NF","4NF only"),B("Serializability ensures?","Concurrent schedule equals some serial schedule","No transactions run","Faster queries","Data is encrypted"),B("A deadlock occurs when?","Transactions wait on each other's locks","A table is empty","Disk is full","Query is slow"),B("Which index structure is most common in databases?","B+ tree","Binary heap","Stack","Linked list"),B("Which isolation level allows dirty reads?","Read Uncommitted","Read Committed","Repeatable Read","Serializable"),B("A candidate key is?","A minimal super key","Any foreign key","A composite index","A view"),B("Degree of a relation is?","Number of attributes","Number of tuples","Number of keys","Number of tables"),B("TRUNCATE differs from DELETE because it?","Removes all rows quickly without row-wise logging","Deletes the table","Needs WHERE","Only deletes one row")]}
+});
+
+// ---- Extra questions: Aptitude and DBMS now have 50 each ----
+const EXTRA = {
+"Aptitude":{
+ Easy:[B("What is 10% of 350?","35","3.5","30","350"),B("What is 12 × 12?","144","124","122","148"),B("Next number: 5, 10, 15, 20, ?","25","30","24","22"),B("Perimeter of a square of side 6?","24","12","36","18"),B("3/4 as a percentage?","75%","34%","60%","80%"),B("A dozen pencils cost ₹60. Cost of one?","₹5","₹6","₹4","₹10"),B("Days in a leap year?","366","365","364","367"),B("LCM of 4 and 6?","12","24","6","10")],
+ Moderate:[B("HCF of 12 and 18?","6","3","9","2"),B("A car covers 150 km in 3 hours. Speed?","50 km/h","45 km/h","60 km/h","40 km/h"),B("SP is ₹450 at a 10% loss. CP?","₹500","₹495","₹480","₹550"),B("Son is 10, father is 4 times his age. Father's age after 5 years?","45","40","50","55"),B("Area of a triangle with base 10 and height 6?","30","60","16","36"),B("Next number: 3, 9, 27, 81, ?","243","162","324","200"),B("Average of 5 numbers is 20. Their sum?","100","80","120","25"),B("Boat speed 10 km/h in still water, stream 2 km/h. Downstream speed?","12 km/h","8 km/h","10 km/h","14 km/h"),B("Simple interest on ₹2000 for 3 years at 5%?","₹300","₹200","₹330","₹250")],
+ Hard:[B("Next number: 1, 1, 2, 3, 5, 8, ?","13","11","12","15"),B("Angle between clock hands at 3:00?","90°","60°","120°","75°"),B("Value of 6C2?","15","12","30","36"),B("A finishes a job in 12 days, B in 18 days. Together?","7.2 days","6 days","8 days","15 days"),B("Sum of the first 10 even numbers?","110","100","90","120"),B("Probability of drawing an ace from a 52-card deck?","1/13","1/26","1/4","4/13"),B("A 200 m train crosses a 300 m platform at 25 m/s. Time?","20 s","12 s","8 s","25 s"),B("Population 10000 grows 10% yearly. After 2 years?","12100","12000","11000","12200"),B("If x + 1/x = 3, then x² + 1/x² = ?","7","9","5","6")]},
+"DBMS":{
+ Easy:[B("Which command modifies existing data?","UPDATE","INSERT","MODIFY","ALTER ROW"),B("Which command removes rows?","DELETE","DROP","REMOVE","CUT"),B("Which keyword sorts results?","ORDER BY","GROUP BY","SORT","ARRANGE"),B("Columns of a table are called?","Attributes","Tuples","Records","Relations"),B("Which constraint prevents empty values?","NOT NULL","UNIQUE","CHECK","DEFAULT"),B("Which function counts rows?","COUNT()","SUM()","TOTAL()","NUM()"),B("An organized collection of related data is a?","Database","Spreadsheet","Compiler","Network"),B("Which clause filters rows?","WHERE","HAVING","FROM","LIMIT")],
+ Moderate:[B("Which function returns the highest value?","MAX()","TOP()","HIGH()","BIG()"),B("1NF requires values to be?","Atomic","Unique","Sorted","Indexed"),B("Which key uniquely identifies each row?","Primary key","Foreign key","Alternate view","Composite index"),B("An ER diagram shows?","Entities and relationships","Table indexes","Server load","Query plans"),B("Which join returns only matching rows?","INNER JOIN","LEFT JOIN","FULL JOIN","CROSS JOIN"),B("GRANT belongs to which language?","DCL","DDL","DML","TCL"),B("A view is?","A virtual table","A backup","An index","A trigger"),B("In LIKE, which wildcard matches any string?","%","_","*","#"),B("In ACID, 'D' stands for?","Durability","Dependency","Dimension","Deadlock")],
+ Hard:[B("3NF removes which dependency?","Transitive","Partial","Multivalued","Join"),B("Two-phase locking guarantees?","Serializability","Faster reads","No deadlock","Compression"),B("Which is NOT an ACID property?","Scalability","Atomicity","Consistency","Isolation"),B("Losing other information while deleting a row is a?","Deletion anomaly","Insertion anomaly","Update anomaly","Join anomaly"),B("Armstrong's axioms are used to derive?","Functional dependencies","Indexes","Joins","Views"),B("Which technique logs changes before writing to disk?","Write-ahead logging","Shadow paging only","Hashing","Mirroring"),B("Phantom reads are prevented at which isolation level?","Serializable","Read Uncommitted","Read Committed","Repeatable Read"),B("A super key is?","Set of attributes that uniquely identifies tuples","Smallest key only","Foreign key set","Any column"),B("Which join gives the Cartesian product?","CROSS JOIN","INNER JOIN","SELF JOIN","NATURAL JOIN")]}
+};
+for(const sub in EXTRA) for(const lvl in EXTRA[sub]) QUESTIONS[sub][lvl].push(...EXTRA[sub][lvl]);
+
+// ---- Extra questions: every subject now has 50 ----
+const EXTRA2 = {
+"General Knowledge":{
+ Easy:[B("Largest planet in our solar system?","Jupiter","Saturn","Earth","Neptune"),B("National animal of India?","Tiger","Lion","Elephant","Leopard"),B("National bird of India?","Peacock","Parrot","Sparrow","Eagle"),B("Capital of the USA?","Washington, D.C.","New York","Los Angeles","Chicago"),B("How many colours are in a rainbow?","7","5","6","8"),B("Largest hot desert in the world?","Sahara","Gobi","Thar","Kalahari"),B("Who is called the Father of the Nation in India?","Mahatma Gandhi","Jawaharlal Nehru","Sardar Patel","B. R. Ambedkar"),B("National flower of India?","Lotus","Rose","Marigold","Jasmine")],
+ Moderate:[B("Who painted the Mona Lisa?","Leonardo da Vinci","Michelangelo","Picasso","Van Gogh"),B("Chemical symbol of gold?","Au","Ag","Gd","Go"),B("Largest country by area?","Russia","Canada","China","USA"),B("Currency of the United Kingdom?","Pound sterling","Euro","Dollar","Franc"),B("Who invented the telephone?","Alexander Graham Bell","Thomas Edison","Nikola Tesla","Marconi"),B("Players in a cricket team?","11","9","12","10"),B("Capital of Australia?","Canberra","Sydney","Melbourne","Perth"),B("Highest mountain peak in the world?","Mount Everest","K2","Kangchenjunga","Makalu"),B("Which gas do plants absorb from the air?","Carbon dioxide","Oxygen","Nitrogen","Hydrogen")],
+ Hard:[B("Malala Yousafzai shared which Nobel Prize in 2014?","Peace","Literature","Physics","Medicine"),B("Largest moon of Saturn?","Titan","Europa","Ganymede","Io"),B("Who wrote 'The Wealth of Nations'?","Adam Smith","Karl Marx","John Keynes","David Ricardo"),B("Capital of Brazil?","Brasília","Rio de Janeiro","São Paulo","Salvador"),B("Smallest bone in the human body?","Stapes","Femur","Ulna","Hyoid"),B("Currency of Switzerland?","Swiss franc","Euro","Krona","Lira"),B("Hardest natural substance?","Diamond","Quartz","Graphite","Topaz"),B("Who discovered penicillin?","Alexander Fleming","Louis Pasteur","Edward Jenner","Joseph Lister"),B("Which city is called the 'City of Joy'?","Kolkata","Mumbai","Varanasi","Jaipur")]},
+"Computer Science":{
+ Easy:[B("OS stands for?","Operating System","Open Software","Output Service","Online System"),B("Which of these is a web browser?","Chrome","Windows","Linux","Python"),B("How many bits make a byte?","8","4","16","2"),B("Which language is used to style web pages?","CSS","HTML","SQL","Java"),B("Which of these is an output device?","Monitor","Keyboard","Mouse","Scanner"),B("WWW stands for?","World Wide Web","World Wide Wire","Web World Wide","Wide Web Window"),B("Which of these is a search engine?","Google","Excel","Photoshop","Notepad"),B("Which of these is a storage device?","Hard disk","Mouse","Speaker","Printer")],
+ Moderate:[B("Which keyword defines a function in Python?","def","func","function","define"),B("Binary equivalent of decimal 5?","101","110","100","111"),B("Which structure links nodes using pointers?","Linked list","Array","Stack of arrays","Matrix"),B("HTTP stands for?","HyperText Transfer Protocol","High Transfer Text Process","HyperText Transmission Path","Host Text Transfer Protocol"),B("Which of these is a compiled language?","C","Python","JavaScript","Ruby"),B("Which protocol is used to send email?","SMTP","FTP","HTTP","SNMP"),B("Which loop always runs at least once?","do-while","for","while","foreach"),B("Which memory is the fastest?","Cache","RAM","Hard disk","SSD"),B("How many bits are in an IPv4 address?","32","64","128","16")],
+ Hard:[B("Worst-case time complexity of bubble sort?","O(n²)","O(n log n)","O(n)","O(log n)"),B("Which algorithm uses divide and conquer?","Merge sort","Bubble sort","Selection sort","Insertion sort"),B("Which CPU scheduling algorithm is non-preemptive?","FCFS","Round Robin","SRTF","Preemptive Priority"),B("How many bits are in an IPv6 address?","128","64","256","32"),B("BFS uses which data structure?","Queue","Stack","Heap","Tree"),B("DFS (iterative) uses which data structure?","Stack","Queue","Heap","Graph"),B("Which OSI layer handles routing?","Network","Transport","Data Link","Session"),B("Which protocol is connection-oriented?","TCP","UDP","IP","ICMP"),B("A compiler translates source code to?","Machine code","Pseudocode","Flowcharts","Comments")]},
+"Mathematics":{
+ Easy:[B("What is 100 ÷ 4?","25","20","40","50"),B("What is 9 × 9?","81","72","99","80"),B("Next prime number after 7?","11","9","13","8"),B("Square of 12?","144","124","132","122"),B("Number of sides of a hexagon?","6","5","8","7"),B("What is 1/2 + 1/2?","1","2","1/4","0"),B("Approximate value of π?","3.14","2.71","1.62","3.41"),B("Cube of 3?","27","9","18","81"),B("Half of 250?","125","115","150","105"),B("What is 3 + 4 × 2?","11","14","10","24"),B("Degrees in a right angle?","90°","45°","180°","60°"),B("Smallest prime number?","2","1","3","0")],
+ Moderate:[B("Solve: 2x + 6 = 14. x = ?","4","3","5","10"),B("Volume of a cube with side 3?","27","9","18","81"),B("Value of sin 90°?","1","0","1/2","−1"),B("Value of log₁₀ 100?","2","10","1","100"),B("Perimeter of a rectangle 8 × 5?","26","40","13","30"),B("Slope of the line y = 3x + 2?","3","2","5","1/3"),B("Value of 5! (5 factorial)?","120","25","60","24"),B("Roots of x² − 5x + 6 = 0?","2 and 3","1 and 6","−2 and −3","5 and 1"),B("Sum of interior angles of a quadrilateral?","360°","180°","270°","540°"),B("Circumference of a circle with radius 7 (π = 22/7)?","44","154","22","49"),B("Value of cos 0°?","1","0","1/2","−1"),B("LCM of 6 and 8?","24","48","12","14"),B("Expansion of (a + b)²?","a² + 2ab + b²","a² + b²","a² − 2ab + b²","2a + 2b")],
+ Hard:[B("∫ 2x dx = ?","x² + C","2 + C","x + C","2x² + C"),B("Derivative of sin x?","cos x","−sin x","−cos x","tan x"),B("Sum of the infinite series 1 + 1/2 + 1/4 + …?","2","1","∞","3/2"),B("Number of subsets of a set with 4 elements?","16","8","4","32"),B("Value of i⁴ (i = √−1)?","1","−1","i","−i"),B("Derivative of eˣ?","eˣ","x·eˣ⁻¹","1","e"),B("Sum of interior angles of an octagon?","1080°","900°","720°","1440°"),B("Value of log₂ 32?","5","4","6","16"),B("Ways to choose 3 items from 5?","10","15","20","60"),B("nth term of an AP with first term a and difference d?","a + (n − 1)d","a·dⁿ","a + nd","n(a + d)"),B("Euler's identity states e^(iπ) + 1 = ?","0","1","−1","i"),B("Discriminant of x² + 2x + 1?","0","4","−4","2"),B("Derivative of ln x?","1/x","x","ln x","eˣ")]},
+"History":{
+ Easy:[B("First President of India?","Rajendra Prasad","S. Radhakrishnan","Zakir Husain","Nehru"),B("First President of the USA?","George Washington","Abraham Lincoln","Thomas Jefferson","John Adams"),B("India became a Republic in?","1950","1947","1949","1952"),B("Who is known as the 'Iron Man of India'?","Sardar Patel","Subhas Bose","Bhagat Singh","Nehru"),B("The Industrial Revolution began in?","Britain","France","Germany","USA"),B("Napoleon Bonaparte was Emperor of?","France","Italy","Spain","Russia"),B("The Colosseum was built by which empire?","Roman","Greek","Persian","Ottoman"),B("Emperor Ashoka belonged to which dynasty?","Maurya","Gupta","Mughal","Chola"),B("Who gave the slogan 'Jai Jawan Jai Kisan'?","Lal Bahadur Shastri","Nehru","Indira Gandhi","Patel"),B("Mohenjo-daro belongs to which civilization?","Indus Valley","Mesopotamian","Egyptian","Vedic"),B("Who is called the Father of the Nation in India?","Mahatma Gandhi","Nehru","Tilak","Bose"),B("Who chaired the Drafting Committee of the Indian Constitution?","B. R. Ambedkar","Nehru","Rajendra Prasad","Patel")],
+ Moderate:[B("Quit India Movement began in?","1942","1930","1920","1947"),B("Jallianwala Bagh massacre happened in?","1919","1905","1930","1921"),B("Who defeated Ibrahim Lodi at the First Battle of Panipat?","Babur","Akbar","Humayun","Sher Shah"),B("The Russian Revolution took place in?","1917","1905","1923","1914"),B("Founder of the Maurya Empire?","Chandragupta Maurya","Ashoka","Bindusara","Samudragupta"),B("The Titanic sank in?","1912","1905","1920","1898"),B("American Declaration of Independence was in?","1776","1789","1812","1754"),B("Who led the Indian National Army (Azad Hind Fauj)?","Subhas Chandra Bose","Bhagat Singh","Gandhi","Nehru"),B("Who was the Queen of Jhansi in 1857?","Rani Lakshmibai","Razia Sultan","Ahilyabai","Chand Bibi"),B("Who reached India by sea in 1498?","Vasco da Gama","Columbus","Magellan","Marco Polo"),B("Last Mughal emperor?","Bahadur Shah Zafar","Aurangzeb","Shah Alam","Akbar II"),B("Partition of Bengal took place in?","1905","1911","1947","1857"),B("British Prime Minister during most of World War II?","Winston Churchill","Neville Chamberlain","Clement Attlee","Margaret Thatcher")],
+ Hard:[B("Battle of Waterloo took place in?","1815","1805","1830","1789"),B("Author of the Arthashastra?","Kautilya","Kalidasa","Banabhatta","Megasthenes"),B("Who built the Brihadeeswarar Temple?","Rajaraja Chola I","Rajendra Chola","Krishnadevaraya","Ashoka"),B("Peace of Westphalia was signed in?","1648","1555","1713","1815"),B("Third Battle of Panipat was fought in?","1761","1526","1556","1857"),B("Founder of the Delhi Sultanate (1206)?","Qutb ud-Din Aibak","Iltutmish","Balban","Alauddin Khilji"),B("Governor-General of India during the 1857 revolt?","Lord Canning","Lord Dalhousie","Lord Curzon","Lord Ripon"),B("The Glorious Revolution in England occurred in?","1688","1649","1707","1776"),B("Last Viceroy and first Governor-General of independent India?","Lord Mountbatten","C. Rajagopalachari","Lord Wavell","Lord Linlithgow"),B("Alexander invaded India in?","326 BC","500 BC","100 BC","1 AD"),B("Founder of the Sikh Empire?","Maharaja Ranjit Singh","Guru Nanak","Guru Gobind Singh","Banda Bahadur"),B("Capital of the Vijayanagara Empire?","Hampi","Madurai","Warangal","Bidar"),B("Indian National Congress was founded in?","1885","1857","1905","1919")]}
+};
+for(const sub in EXTRA2) for(const lvl in EXTRA2[sub]) QUESTIONS[sub][lvl].push(...EXTRA2[sub][lvl]);
+
+const CATEGORY_ICONS = {
+  "General Knowledge": `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg>`,
+  "Mathematics": `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M12 5v14"/><path d="M5 19l14-14" opacity=".4"/></svg>`,
+  "History": `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
+  "Aptitude": `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>`,
+  "DBMS": `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>`,
+  "Computer Science": `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="6" width="12" height="12" rx="1.5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>`
+};
+
+// Open Trivia DB category IDs. Aptitude & DBMS have no API category, so they use the local bank only.
+const API_CATEGORY = {
+  "General Knowledge": 9,
+  "Computer Science": 18,
+  "Mathematics": 19,
+  "History": 23,
+  "Aptitude": null,
+  "DBMS": null
+};
+const LOCAL_ONLY = ["Aptitude", "DBMS"];
+const API_URL = "https://opentdb.com/api.php";
+const TOKEN_URL = "https://opentdb.com/api_token.php";
+const COUNT_OPTIONS = [10, 20, 30, 50];   // API max per request = 50
+let sessionToken = null;                   // stops repeated questions in one session
+
+const TIME_LIMIT = 15;
+const RING_R = 22;
+const RING_CIRC = 2 * Math.PI * RING_R;
+const SCORE_R = 45;
+const SCORE_CIRC = 2 * Math.PI * SCORE_R;
+
+let state = { name:"", category:null, difficulty:null, questions:[], count:10, index:0, score:0, timer:null, timeLeft:TIME_LIMIT, answered:false, streak:0, bestStreak:0 };
+let sessionScores = [];
+let soundOn = true;
+
+/* ---------- SPLASH ---------- */
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{ el('splash').classList.add('hide'); }, 1750);
+});
+
+/* ---------- SOUND ---------- */
+let audioCtx = null;
+function beep(freq, dur, type){
+  if(!soundOn) return;
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + dur);
+  }catch(e){}
+}
+el('soundToggle').addEventListener('click', ()=>{
+  soundOn = !soundOn;
+  el('soundIconOn').style.display = soundOn ? 'block' : 'none';
+  el('soundIconOff').style.display = soundOn ? 'none' : 'block';
+  if(soundOn) beep(660,0.08,'sine');
+});
+
+/* ---------- BUTTON RIPPLE ---------- */
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button.btn');
+  if(!btn) return;
+  const rect = btn.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  const size = Math.max(rect.width, rect.height) * 1.2;
+  ripple.className = 'ripple';
+  ripple.style.width = ripple.style.height = size+'px';
+  ripple.style.left = (e.clientX - rect.left - size/2)+'px';
+  ripple.style.top = (e.clientY - rect.top - size/2)+'px';
+  btn.appendChild(ripple);
+  setTimeout(()=> ripple.remove(), 600);
+});
+
+/* ---------- PARTICLE BACKGROUND ---------- */
+(function(){
+  const canvas = el('particles');
+  const ctx = canvas.getContext('2d');
+  let w,h,particles;
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  function initParticles(){
+    const count = Math.min(60, Math.floor((w*h)/28000));
+    particles = Array.from({length:count}, ()=>({
+      x: Math.random()*w, y: Math.random()*h,
+      vx: (Math.random()-0.5)*0.25, vy: (Math.random()-0.5)*0.25,
+      r: Math.random()*1.6+0.6,
+      hue: Math.random()>0.5 ? '76,224,210' : '156,140,251'
+    }));
+  }
+  function tick(){
+    ctx.clearRect(0,0,w,h);
+    for(const p of particles){
+      p.x += p.vx; p.y += p.vy;
+      if(p.x<0||p.x>w) p.vx*=-1;
+      if(p.y<0||p.y>h) p.vy*=-1;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(${p.hue},0.5)`;
+      ctx.fill();
+    }
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const a=particles[i], b=particles[j];
+        const dx=a.x-b.x, dy=a.y-b.y;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist<120){
+          ctx.strokeStyle = `rgba(76,224,210,${0.08*(1-dist/120)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  window.addEventListener('resize', ()=>{ resize(); initParticles(); });
+  resize(); initParticles(); tick();
+})();
+
+/* ---------- CONFETTI ---------- */
+function fireConfetti(){
+  const canvas = el('confetti');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  const colors = ['#4CE0D2','#9C8CFB','#FFC168','#3ECF8E','#FF6B7A'];
+  let pieces = Array.from({length:130}, ()=>({
+    x: canvas.width/2 + (Math.random()-0.5)*160,
+    y: canvas.height*0.35 + (Math.random()-0.5)*60,
+    vx:(Math.random()-0.5)*8,
+    vy: Math.random()*-9 - 3,
+    size: Math.random()*7+4,
+    color: colors[Math.floor(Math.random()*colors.length)],
+    rot: Math.random()*360,
+    vr:(Math.random()-0.5)*14,
+    life:0
+  }));
+  const gravity = 0.28;
+  function frame(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive = false;
+    for(const p of pieces){
+      p.life++;
+      p.vy += gravity; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      if(p.y < canvas.height + 20) alive = true;
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot*Math.PI/180);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, 1 - p.life/160);
+      ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size*0.6);
+      ctx.restore();
+    }
+    if(alive) requestAnimationFrame(frame);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  frame();
+}
+
+function el(id){ return document.getElementById(id); }
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  el(id).classList.add('active');
+}
+
+/* ---------- START SCREEN ---------- */
+const categoryGrid = el('categoryGrid');
+Object.keys(API_CATEGORY).forEach(cat=>{
+  const div = document.createElement('div');
+  div.className = 'cat-card';
+  div.innerHTML = `${CATEGORY_ICONS[cat] || ''}<div class="label">${cat}</div>`;
+  div.addEventListener('click', ()=>{
+    categoryGrid.querySelectorAll('.cat-card').forEach(c=>c.classList.remove('selected'));
+    div.classList.add('selected');
+    state.category = cat;
+    beep(520,0.06,'sine');
+    checkStartReady();
+  });
+  categoryGrid.appendChild(div);
+});
+Array.from(categoryGrid.children).forEach((c,i)=> c.style.animationDelay = (i*0.06)+'s');
+
+const countGrid = el('countGrid');
+COUNT_OPTIONS.forEach(n=>{
+  const div = document.createElement('div');
+  div.className = 'diff-pill count' + (n===state.count ? ' selected' : '');
+  div.textContent = n;
+  div.addEventListener('click', ()=>{
+    countGrid.querySelectorAll('.diff-pill').forEach(c=>c.classList.remove('selected'));
+    div.classList.add('selected');
+    state.count = n;
+    beep(520,0.06,'sine');
+  });
+  countGrid.appendChild(div);
+});
+
+const difficultyGrid = el('difficultyGrid');
+['Easy','Moderate','Hard'].forEach(level=>{
+  const div = document.createElement('div');
+  div.className = 'diff-pill';
+  div.setAttribute('data-level', level);
+  div.textContent = level;
+  div.addEventListener('click', ()=>{
+    difficultyGrid.querySelectorAll('.diff-pill').forEach(c=>c.classList.remove('selected'));
+    div.classList.add('selected');
+    state.difficulty = level;
+    beep(520,0.06,'sine');
+    checkStartReady();
+  });
+  difficultyGrid.appendChild(div);
+});
+Array.from(difficultyGrid.children).forEach((c,i)=> c.style.animationDelay = (0.2 + i*0.06)+'s');
+
+el('playerName').addEventListener('input', (e)=>{
+  state.name = e.target.value.trim();
+  checkStartReady();
+});
+
+function checkStartReady(){
+  el('startBtn').disabled = !(state.name.length>0 && state.category && state.difficulty);
+}
+
+el('startBtn').addEventListener('click', startQuiz);
+
+/* ---------- QUIZ LOGIC ---------- */
+function decodeHTML(text){
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function getJSON(url, timeout=8000){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeout);
+  try{
+    const res = await fetch(url, { cache:'no-store', signal:ctrl.signal });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally { clearTimeout(t); }
+}
+
+async function ensureToken(reset=false){
+  const cmd = (reset && sessionToken) ? `command=reset&token=${sessionToken}` : 'command=request';
+  const data = await getJSON(`${TOKEN_URL}?${cmd}`);
+  if(data.token) sessionToken = data.token;
+}
+
+async function fetchAPIQuestions(attempt=0){
+  const difficulty = state.difficulty === 'Moderate' ? 'medium' : state.difficulty.toLowerCase();
+  const category = API_CATEGORY[state.category];
+  if(!sessionToken){ try{ await ensureToken(); }catch(e){} }
+
+  const params = new URLSearchParams({ amount: state.count, difficulty, type:'multiple' });
+  if(category) params.set('category', category);
+  if(sessionToken) params.set('token', sessionToken);
+
+  const data = await getJSON(`${API_URL}?${params}`);
+
+  // response_code: 0 ok, 1 not enough questions, 4 token exhausted, 5 rate limited
+  if(data.response_code === 5 && attempt < 2){ await sleep(5200); return fetchAPIQuestions(attempt+1); }
+  if(data.response_code === 4 && attempt < 2){ await ensureToken(true); return fetchAPIQuestions(attempt+1); }
+  if(data.response_code === 1 && state.count > 10 && attempt < 3){
+    state.count = Math.max(10, Math.floor(state.count/2));   // retry with fewer questions
+    return fetchAPIQuestions(attempt+1);
+  }
+  if(data.response_code !== 0 || !Array.isArray(data.results) || !data.results.length){
+    throw new Error(`Open Trivia DB response code: ${data.response_code}`);
+  }
+
+  return data.results.map(item => ({
+    q: decodeHTML(item.question),
+    options: [item.correct_answer, ...item.incorrect_answers].map(decodeHTML),
+    answer: decodeHTML(item.correct_answer)
+  }));
+}
+
+function setApiStatus(live, n, local){
+  el('apiStatus').textContent = live ? 'API Live' : local ? `Local Bank (${n} Qs)` : `Offline Mode (${n} Qs)`;
+}
+
+function useLocalQuestions(){
+  // Strictly subject-wise: fill from chosen difficulty first, then the other levels of the same subject.
+  const bank = QUESTIONS[state.category];
+  const levels = [state.difficulty, ...['Easy','Moderate','Hard'].filter(l => l!==state.difficulty)];
+  const picked = [];
+  for(const lvl of levels){
+    if(picked.length >= state.count) break;
+    picked.push(...shuffle(bank[lvl]));
+  }
+  return picked.slice(0, state.count);
+}
+
+async function startQuiz(){
+  const startBtn = el('startBtn');
+  const originalText = startBtn.textContent;
+  startBtn.disabled = true;
+  startBtn.textContent = `Loading ${state.count} Questions…`;
+
+  try{
+    if(LOCAL_ONLY.includes(state.category)) throw new Error('local-only subject');
+    state.questions = shuffle(await fetchAPIQuestions());
+    setApiStatus(true);
+  }catch(error){
+    console.warn('Quiz API unavailable. Using built-in questions instead.', error);
+    state.questions = useLocalQuestions();
+    setApiStatus(false, state.questions.length, LOCAL_ONLY.includes(state.category));
+  }
+
+  state.index = 0;
+  state.score = 0;
+  state.streak = 0;
+  state.bestStreak = 0;
+  updateStreakBadge();
+  startBtn.textContent = originalText;
+  checkStartReady();
+  showScreen('screen-quiz');
+  loadQuestion();
+}
+
+function updateStreakBadge(){
+  const badge = el('streakBadge');
+  el('streakCount').textContent = state.streak;
+  if(state.streak>=2) badge.classList.add('show');
+  else badge.classList.remove('show');
+}
+
+function loadQuestion(){
+  state.answered = false;
+  const q = state.questions[state.index];
+  const total = state.questions.length;
+  el('quizProgressLabel').textContent = `Question ${state.index+1} / ${total}`;
+  el('progressFill').style.width = `${(state.index/total)*100}%`;
+  el('questionText').textContent = q.q;
+  { const qt = el('questionText'); qt.style.animation='none'; void qt.offsetHeight; qt.style.animation=''; }
+
+  const shuffledOptions = shuffle(q.options);
+  const letters = ['A','B','C','D'];
+  const list = el('answersList');
+  list.innerHTML = "";
+  shuffledOptions.forEach((opt,i)=>{
+    const row = document.createElement('div');
+    row.className = 'answer-option';
+    row.style.animationDelay = (i*0.07)+'s';
+    row.innerHTML = `<span class="letter">${letters[i]}</span><span class="txt">${opt}</span>`;
+    row.addEventListener('click', ()=> selectAnswer(row, opt, q.answer));
+    list.appendChild(row);
+  });
+
+  const ring = el('timerRing');
+  ring.style.strokeDasharray = RING_CIRC;
+  startTimer();
+}
+
+function startTimer(){
+  clearInterval(state.timer);
+  state.timeLeft = TIME_LIMIT;
+  updateTimerRing();
+  state.timer = setInterval(()=>{
+    state.timeLeft--;
+    updateTimerRing();
+    if(state.timeLeft<=0){
+      clearInterval(state.timer);
+      if(!state.answered) timeUp();
+    }
+  },1000);
+}
+
+function updateTimerRing(){
+  const ring = el('timerRing');
+  const frac = Math.max(state.timeLeft,0)/TIME_LIMIT;
+  ring.style.strokeDashoffset = RING_CIRC * (1-frac);
+  ring.style.stroke = state.timeLeft<=5 ? 'var(--wrong)' : 'var(--cyan)';
+  el('timerDisplay').textContent = Math.max(state.timeLeft,0);
+  el('timerRingWrap').classList.toggle('low', state.timeLeft<=5 && state.timeLeft>0);
+  if(state.timeLeft<=5 && state.timeLeft>0) beep(300,0.05,'square');
+}
+
+function timeUp(){
+  state.answered = true;
+  const q = state.questions[state.index];
+  document.querySelectorAll('.answer-option').forEach(opt=>{
+    opt.classList.add('disabled');
+    if(opt.querySelector('.txt').textContent===q.answer) opt.classList.add('correct');
+  });
+  state.streak = 0;
+  updateStreakBadge();
+  beep(180,0.25,'sawtooth');
+  flashPulse(false);
+  setTimeout(nextQuestion, 1200);
+}
+
+function selectAnswer(row, chosen, correctAnswer){
+  if(state.answered) return;
+  state.answered = true;
+  clearInterval(state.timer);
+  const isCorrect = chosen === correctAnswer;
+  document.querySelectorAll('.answer-option').forEach(opt=>{
+    opt.classList.add('disabled');
+    const txt = opt.querySelector('.txt').textContent;
+    if(txt===correctAnswer) opt.classList.add('correct');
+    else if(opt===row && !isCorrect) opt.classList.add('wrong');
+  });
+  if(isCorrect){
+    state.score++;
+    state.streak++;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    beep(760,0.12,'sine');
+  } else {
+    state.streak = 0;
+    beep(180,0.25,'sawtooth');
+  }
+  updateStreakBadge();
+  flashPulse(isCorrect);
+  setTimeout(nextQuestion, 900);
+}
+
+function flashPulse(isCorrect){
+  const flash = el('pulseFlash');
+  flash.className = 'pulse-flash ' + (isCorrect ? 'correct' : 'wrong');
+  void flash.offsetWidth;
+  flash.classList.add('show');
+}
+
+function nextQuestion(){
+  state.index++;
+  if(state.index >= state.questions.length){
+    finishQuiz();
+  } else {
+    loadQuestion();
+  }
+}
+
+function finishQuiz(){
+  el('progressFill').style.width = '100%';
+  const total = state.questions.length;
+  const pct = state.score/total;
+  let grade = 'F';
+  if(pct===1) grade='A+';
+  else if(pct>=0.8) grade='A';
+  else if(pct>=0.6) grade='B';
+  else if(pct>=0.4) grade='C';
+  else if(pct>=0.2) grade='D';
+
+  const ring = el('scoreRing');
+  ring.style.strokeDasharray = SCORE_CIRC;
+  ring.style.strokeDashoffset = SCORE_CIRC;
+  el('scorePct').textContent = '0%';
+
+  el('gradeWord').textContent = 'Grade ' + grade;
+  el('gradeScore').textContent = `${state.score} / ${total} correct`;
+  el('gradeDetail').textContent = `${state.name} — ${state.category} — ${state.difficulty}`;
+
+  sessionScores.push({name:state.name, score:state.score, total, category:state.category, difficulty:state.difficulty});
+  sessionScores.sort((a,b)=> (b.score/b.total) - (a.score/a.total));
+  sessionScores = sessionScores.slice(0,5);
+  renderScoreboard();
+
+  showScreen('screen-results');
+
+  requestAnimationFrame(()=>{
+    setTimeout(()=>{
+      ring.style.strokeDashoffset = SCORE_CIRC * (1-pct);
+      el('scorePct').textContent = Math.round(pct*100)+'%';
+    }, 80);
+  });
+
+  if(pct>=0.6){
+    setTimeout(fireConfetti, 300);
+    beep(880,0.15,'sine');
+    setTimeout(()=>beep(1046,0.18,'sine'), 140);
+  }
+}
+
+function renderScoreboard(){
+  const list = el('scoreList');
+  if(sessionScores.length===0){
+    list.innerHTML = '<div class="score-entry"><span class="who">No scores yet</span></div>';
+    return;
+  }
+  list.innerHTML = sessionScores.map(s=>`
+    <div class="score-entry">
+      <span class="who">${s.name} — ${s.score}/${s.total}</span>
+      <span class="meta">${s.category} · ${s.difficulty}</span>
+    </div>
+  `).join('');
+}
+
+el('retryBtn').addEventListener('click', startQuiz);
+el('menuBtn').addEventListener('click', ()=> showScreen('screen-start'));
+</script>
+</body>
+</html>
+
